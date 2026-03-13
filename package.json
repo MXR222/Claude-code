@@ -1,0 +1,15 @@
+{
+  "name": "sap-function-spec-generator",
+  "version": "1.0.0",
+  "description": "SAP Function Spec Generator - Upload docs and generate FS automatically",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1"
+  }
+}

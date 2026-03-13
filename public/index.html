@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAP Function Spec Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      padding: 24px 0;
+      text-align: center;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+    }
+    .header h1 { font-size: 28px; font-weight: 700; }
+    .header p { margin-top: 6px; opacity: 0.8; font-size: 15px; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+    }
+
+    .panel h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e8ecf1;
+      color: #16213e;
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+    }
+    .form-group .hint {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"], input[type="password"], select, textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #0f3460;
+      box-shadow: 0 0 0 3px rgba(15,52,96,0.1);
+    }
+    textarea { resize: vertical; min-height: 100px; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #c5cad3;
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      background: #fafbfc;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #0f3460;
+      background: #eef2f7;
+    }
+    .drop-zone-icon { font-size: 40px; margin-bottom: 8px; }
+    .drop-zone-text { font-size: 14px; color: #666; }
+    .drop-zone-text strong { color: #0f3460; }
+
+    .file-list { margin-top: 12px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #f5f7fa;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .file-item .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-item .file-size { color: #888; margin: 0 12px; white-space: nowrap; }
+    .file-item .remove-btn {
+      background: none;
+      border: none;
+      color: #e74c3c;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0 4px;
+      line-height: 1;
+    }
+
+    /* Generate button */
+    .btn-generate {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0f3460, #16213e);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s;
+      margin-top: 8px;
+    }
+    .btn-generate:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-generate:disabled {
+      background: #a0aec0;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Output panel */
+    .output-panel { position: relative; }
+    .output-panel h2 { display: flex; align-items: center; justify-content: space-between; }
+
+    .output-actions { display: flex; gap: 8px; }
+    .btn-action {
+      padding: 5px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 6px;
+      background: white;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-action:hover { border-color: #0f3460; color: #0f3460; }
+
+    #output {
+      min-height: 400px;
+      max-height: 75vh;
+      overflow-y: auto;
+      padding: 16px;
+      background: #fafbfc;
+      border-radius: 8px;
+      border: 1px solid #e8ecf1;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    #output:empty::before {
+      content: "生成的 Function Spec 将显示在这里...\A\A提示：填写左侧表单后点击「生成 Function Spec」按钮";
+      white-space: pre-wrap;
+      color: #aaa;
+    }
+
+    /* Markdown rendered styles */
+    #output h1 { font-size: 22px; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8ecf1; }
+    #output h2 { font-size: 18px; margin: 18px 0 10px; color: #16213e; }
+    #output h3 { font-size: 15px; margin: 14px 0 8px; }
+    #output h4 { font-size: 14px; margin: 12px 0 6px; }
+    #output p { margin: 6px 0; }
+    #output ul, #output ol { margin: 6px 0 6px 20px; }
+    #output table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+    #output th, #output td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; }
+    #output th { background: #eef2f7; font-weight: 600; }
+    #output tr:nth-child(even) { background: #f9fafb; }
+    #output code { background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+    #output pre { background: #1a1a2e; color: #e8ecf1; padding: 14px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
+    #output pre code { background: none; color: inherit; }
+    #output strong { color: #16213e; }
+    #output hr { border: none; border-top: 1px solid #e8ecf1; margin: 16px 0; }
+
+    /* Loading animation */
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 16px;
+      color: #0f3460;
+      font-size: 14px;
+    }
+    .loading.show { display: flex; }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2.5px solid #e8ecf1;
+      border-top-color: #0f3460;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* API key toggle */
+    .api-key-wrapper { position: relative; }
+    .api-key-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #888;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #16213e;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>SAP Function Spec Generator</h1>
+  <p>上传文档，描述需求，一键生成专业的 SAP 功能规格说明书</p>
+</div>
+
+<div class="container">
+  <!-- Left: Input Panel -->
+  <div class="panel">
+    <h2>1. 填写信息</h2>
+
+    <div class="form-group">
+      <label>Anthropic API Key *</label>
+      <div class="hint">在 <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> 获取</div>
+      <div class="api-key-wrapper">
+        <input type="password" id="apiKey" placeholder="sk-ant-api03-...">
+        <button class="api-key-toggle" onclick="toggleApiKey()" title="显示/隐藏">👁</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>项目名称</label>
+        <input type="text" id="projectName" placeholder="例: XX公司 S/4HANA 项目">
+      </div>
+      <div class="form-group">
+        <label>SAP 模块</label>
+        <select id="module">
+          <option value="">请选择...</option>
+          <option value="FI (Financial Accounting / 财务会计)">FI - 财务会计</option>
+          <option value="CO (Controlling / 管理会计)">CO - 管理会计</option>
+          <option value="FI/CO (Finance & Controlling)">FI/CO - 财务与控制</option>
+          <option value="MM (Materials Management / 物料管理)">MM - 物料管理</option>
+          <option value="SD (Sales & Distribution / 销售与分销)">SD - 销售与分销</option>
+          <option value="PP (Production Planning / 生产计划)">PP - 生产计划</option>
+          <option value="HR/HCM (Human Capital Management)">HR - 人力资源</option>
+          <option value="WM/EWM (Warehouse Management)">WM - 仓库管理</option>
+          <option value="QM (Quality Management / 质量管理)">QM - 质量管理</option>
+          <option value="PM (Plant Maintenance / 工厂维护)">PM - 工厂维护</option>
+          <option value="PS (Project System / 项目系统)">PS - 项目系统</option>
+          <option value="BW/BI (Business Intelligence)">BW/BI - 商业智能</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>开发类型</label>
+      <select id="devType">
+        <option value="">请选择...</option>
+        <option value="Report (ALV 报表)">Report - ALV 报表</option>
+        <option value="Interface (接口 - RFC/BAPI/IDoc/REST)">Interface - 接口</option>
+        <option value="Enhancement (增强 - BADI/User Exit)">Enhancement - 增强</option>
+        <option value="Form (表单 - Smartforms/Adobe Forms)">Form - 表单</option>
+        <option value="Workflow (工作流)">Workflow - 工作流</option>
+        <option value="Conversion (数据迁移)">Conversion - 数据迁移</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>业务背景</label>
+      <textarea id="background" rows="3" placeholder="描述项目背景、业务现状、为什么需要这个开发..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>业务需求 *</label>
+      <textarea id="requirements" rows="6" placeholder="详细描述你需要的功能，例如：&#10;- 需要一个报表查询供应商付款明细&#10;- 选择条件包括：公司代码、供应商、日期范围&#10;- 输出包括：供应商名称、发票号、金额、日期&#10;- 需要支持 Excel 导出&#10;&#10;越详细越好！"></textarea>
+    </div>
+
+    <h2 style="margin-top: 24px;">2. 上传参考文件</h2>
+    <div class="form-group">
+      <div class="hint">支持图片 (PNG/JPG)、PDF、TXT、CSV，最多 20 个文件，每个最大 20MB</div>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">
+          拖拽文件到这里，或 <strong>点击选择文件</strong>
+        </div>
+      </div>
+      <input type="file" id="fileInput" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.md,.csv,.xlsx,.xls,.docx,.doc" hidden>
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <button class="btn-generate" id="btnGenerate" onclick="generate()">
+      生成 Function Spec
+    </button>
+  </div>
+
+  <!-- Right: Output Panel -->
+  <div class="panel output-panel">
+    <h2>
+      生成结果
+      <div class="output-actions">
+        <button class="btn-action" onclick="copyOutput()" title="复制 Markdown 原文">复制</button>
+        <button class="btn-action" onclick="downloadOutput()" title="下载为 .md 文件">下载</button>
+      </div>
+    </h2>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <span id="loadingText">正在生成中，请稍候...</span>
+    </div>
+    <div id="output"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== File upload handling =====
+  const dropZone = document.getElementById("dropZone");
+  const fileInput = document.getElementById("fileInput");
+  const fileList = document.getElementById("fileList");
+  let uploadedFiles = [];
+
+  dropZone.addEventListener("click", () => fileInput.click());
+  dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("dragover"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    addFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
+
+  function addFiles(files) {
+    for (const file of files) {
+      if (uploadedFiles.length >= 20) { showToast("最多上传 20 个文件"); break; }
+      if (file.size > 20 * 1024 * 1024) { showToast(`${file.name} 超过 20MB 限制`); continue; }
+      uploadedFiles.push(file);
+    }
+    renderFileList();
+  }
+
+  function removeFile(index) {
+    uploadedFiles.splice(index, 1);
+    renderFileList();
+  }
+
+  function renderFileList() {
+    fileList.innerHTML = uploadedFiles.map((f, i) => `
+      <div class="file-item">
+        <span class="file-name">${f.name}</span>
+        <span class="file-size">${(f.size / 1024).toFixed(0)} KB</span>
+        <button class="remove-btn" onclick="removeFile(${i})">&times;</button>
+      </div>
+    `).join("");
+  }
+
+  // ===== API Key toggle =====
+  function toggleApiKey() {
+    const input = document.getElementById("apiKey");
+    input.type = input.type === "password" ? "text" : "password";
+  }
+
+  // Save/load API key from localStorage
+  const savedKey = localStorage.getItem("anthropic_api_key");
+  if (savedKey) document.getElementById("apiKey").value = savedKey;
+
+  // ===== Generation =====
+  let rawMarkdown = "";
+
+  async function generate() {
+    const apiKey = document.getElementById("apiKey").value.trim();
+    const requirements = document.getElementById("requirements").value.trim();
+
+    if (!apiKey) { showToast("请填写 API Key"); return; }
+    if (!requirements) { showToast("请填写业务需求"); return; }
+
+    // Save API key
+    localStorage.setItem("anthropic_api_key", apiKey);
+
+    const btn = document.getElementById("btnGenerate");
+    const loading = document.getElementById("loading");
+    const output = document.getElementById("output");
+
+    btn.disabled = true;
+    btn.textContent = "生成中...";
+    loading.classList.add("show");
+    output.innerHTML = "";
+    rawMarkdown = "";
+
+    const formData = new FormData();
+    formData.append("apiKey", apiKey);
+    formData.append("projectName", document.getElementById("projectName").value);
+    formData.append("module", document.getElementById("module").value);
+    formData.append("devType", document.getElementById("devType").value);
+    formData.append("background", document.getElementById("background").value);
+    formData.append("requirements", requirements);
+
+    for (const file of uploadedFiles) {
+      formData.append("files", file);
+    }
+
+    try {
+      const response = await fetch("/api/generate", { method: "POST", body: formData });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "请求失败");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+          if (data === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) throw new Error(parsed.error);
+            if (parsed.text) {
+              rawMarkdown += parsed.text;
+              output.innerHTML = renderMarkdown(rawMarkdown);
+              output.scrollTop = output.scrollHeight;
+            }
+          } catch (e) {
+            if (e.message && !e.message.includes("JSON")) throw e;
+          }
+        }
+      }
+
+      showToast("生成完成！");
+    } catch (error) {
+      showToast("错误: " + error.message);
+      if (!rawMarkdown) {
+        output.innerHTML = `<p style="color: #e74c3c;">生成失败: ${error.message}</p>`;
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "生成 Function Spec";
+      loading.classList.remove("show");
+    }
+  }
+
+  // ===== Simple Markdown renderer =====
+  function renderMarkdown(md) {
+    let html = md
+      // Code blocks
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="lang-$1">$2</code></pre>')
+      // Tables
+      .replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)*)/gm, (match, header, sep, body) => {
+        const headers = header.split("|").filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join("");
+        const rows = body.trim().split("\n").map(row => {
+          const cells = row.split("|").filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join("");
+          return `<tr>${cells}</tr>`;
+        }).join("");
+        return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+      })
+      // Headers
+      .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      // HR
+      .replace(/^---+$/gm, '<hr>')
+      // Bold & italic
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      // Inline code
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Unordered lists
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      // Ordered lists
+      .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+      // Paragraphs (lines not already tagged)
+      .replace(/^(?!<[hlutop]|<\/|$)(.+)$/gm, '<p>$1</p>');
+
+    // Wrap consecutive <li> in <ul>
+    html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+
+    return html;
+  }
+
+  // ===== Copy & Download =====
+  function copyOutput() {
+    if (!rawMarkdown) { showToast("没有内容可复制"); return; }
+    navigator.clipboard.writeText(rawMarkdown).then(() => showToast("已复制到剪贴板！"));
+  }
+
+  function downloadOutput() {
+    if (!rawMarkdown) { showToast("没有内容可下载"); return; }
+    const blob = new Blob([rawMarkdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `SAP_Function_Spec_${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("已下载！");
+  }
+
+  // ===== Toast =====
+  function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+</script>
+</body>
+</html>
